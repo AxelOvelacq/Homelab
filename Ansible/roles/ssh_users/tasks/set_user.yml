@@ -13,32 +13,44 @@
     path: "{{ ssh_authorized_keys_file }}"
     state: touch
     owner: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
-    group: "ssh_users_group"
+    group: "{{ ssh_users_group }}"
     mode: '0660'
-
-# - name: Add public keys to authorized_keys file
-#   lineinfile:
-#     path: "{{ ssh_authorized_keys_file }}"
-#     line: "{{ key }}"
-#   loop: "{{ item.public_keys }}"
-#   loop_control:
-#     loop_var: key
-#   when: item.public_keys is defined
 
 - name: Add SSH public keys
   ansible.posix.authorized_key:
-    user: "{{ item.name }}"
-    key: "{{ lookup('file', item_key) }}"
+    path: "{{ ssh_authorized_keys_file }}"
+    user: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
+    key: "{{ lookup('file', pkey | replace('file:', '')) }}"
     state: present
-  loop: "{{ ssh_users | subelements('public_keys') }}"
-  vars:
-    item_key: "{{ item.1 }}"
-  when: item.1 is match('^file:')
+  loop: "{{ item.public_keys }}"
+  loop_control:
+    loop_var: pkey
+  when: pkey is match('^file:')
 
 - name: Add SSH public keys from direct string
   ansible.posix.authorized_key:
-    user: "{{ item.0.name }}"
-    key: "{{ item.1 }}"
+    path: "{{ ssh_authorized_keys_file }}"
+    user: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
+    key: "{{ pkey }}"
     state: present
-  loop: "{{ ssh_users | subelements('public_keys') }}"
-  when: item.1 is not match('^file:')
+  loop: "{{ item.public_keys }}"
+  loop_control:
+    loop_var: pkey
+  when: pkey is not match('^file:')
+
+# - name: Show added keys from direct string
+#   debug:
+#     msg: "{{ pkey }}"
+#   loop: "{{ item.public_keys }}"
+#   loop_control:
+#     loop_var: pkey
+#   when: pkey is not match('^file:')
+
+# - name: Sohw added keys from file
+#   debug:
+#     msg: "{{ lookup('file', pkey | replace('file:', '')) }}"
+#   loop: "{{ item.public_keys }}"
+#   loop_control:
+#     loop_var: pkey
+#   when: pkey is match('^file:')
+

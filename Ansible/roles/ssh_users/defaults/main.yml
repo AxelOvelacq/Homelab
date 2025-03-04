@@ -32,8 +32,9 @@ ssh_users_group: "ssh_group"
 
 ssh_users:
   - name: current_user
-    public_keys:
+    public_keys: []
       #- ssh-rsa AAAAB3N[...]
-      #- file:/etc/ssh/users/
+      #- "{{ ssh_key_pcaxel }}"
+      #- "file:/home/.ssh/authorized_keys"
 
 ssh_authorized_keys_file: /etc/ssh/authorized_keys
