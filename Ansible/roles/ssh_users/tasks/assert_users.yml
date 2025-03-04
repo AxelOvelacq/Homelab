@@ -1,0 +1,33 @@
+- name: Check user name
+  fail:
+    msg: "User name {{ item.name }} is not valid."
+  when: 
+    - item.name is undefined or item.name is not string or item.name | length < 1 or not item.name is match("^[a-zA-Z0-9_]+$")
+
+- name: Check other parameters if name <> 'current_user'
+  block:
+    - name: Check password
+      fail:
+        msg: "Password of user {{ item.name }} is not valid."
+      when: 
+        - item.password is defined and (item.password is not string or item.password | length < 1)
+
+    - name: Check create_home
+      fail:
+        msg: "'create_home' of user {{ item.name }} is not valid."
+      when: 
+        - item.create_home is defined and item.create_home | type_debug != 'bool'
+
+    - name: Check hidden_user
+      fail:
+        msg: "'hidden_user' of user {{ item.name }} is not valid."
+      when: 
+        - item.hidden_user is defined and item.hidden_user | type_debug != 'bool'
+
+    - name: Check user's public keys
+      fail:
+        msg: "'public_keys' of user {{ item.name }} is not valid."
+      when: 
+        - item.public_keys is defined and (item.public_keys is not iterable or not all(isinstance(i, str) for i in item.public_keys))
+  
+  when: item.name != 'current_user'
