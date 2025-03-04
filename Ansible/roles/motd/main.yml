@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  gather_facts: true
+  vars_files:
+    - defaults/main.yml
+  roles:
+    - arillso.motd
+
+  tasks:
+    - name: Update database (success)
+      shell:
+        cmd: |
+          sqlite3 {{ settings.db }} << EOF
+              REPLACE INTO APPLICATIONS (appname, status_id)
+              VALUES
+              ('motd',
+              (SELECT status_id FROM APPLICATION_STATUS WHERE value='Configured'));
+          EOF

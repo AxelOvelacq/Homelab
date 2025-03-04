@@ -1,0 +1,163 @@
+#########################################################################
+# Title:         Cloudbox: Common Role                                  #
+# Author(s):     l3uddz, desimaniac                                     #
+# URL:           https://github.com/cloudbox/cloudbox                   #
+# --                                                                    #
+#         Part of the Cloudbox project: https://cloudbox.works          #
+#########################################################################
+#                   GNU General Public License v3.0                     #
+#########################################################################
+---
+- hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Install required packages
+      become: true
+      apt:
+        state: present
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+
+    - name: Install common packages
+      become: true
+      apt:
+        state: present
+        name: "{{ item }}"
+      loop:
+        - "nano"
+        - "members"
+        - "cpufrequtils"
+        - "unionfs-fuse"
+        - "curl"
+        - "sqlite3"
+        - "lsof"
+        - "man-db"
+        - "logrotate"
+        - "gawk"
+        - "ufw"
+        - "wget"
+        - "dnsutils"
+        - "apache2-utils"
+        - "jq"
+        - "yq"
+        - "moreutils"
+        - "zip"
+        - "unzip"
+        # - "tmux"
+        # - "bat"
+        # - "speedtest-cli"
+        # - "unrar"
+        # - "glances"
+        # - "pigz"
+        # - "p7zip"
+        # - "httpie"
+        # - "tree"
+        # - "ksmtuned"
+        # - "pwgen"
+        # - "dialog"
+        # - "figlet"
+        # - "iotop"
+        # - "nload"
+        # - "libchromaprint-tools"
+        # - "lolcat"
+        # - "mc"
+        # - "screen"
+        # - "default-jre"
+        # - "htop"
+        # - "rsync"
+        # - "mediainfo"
+        # - "ncdu"
+
+    # - name: Check to see if unrar installed
+    #   stat:
+    #     path: "/usr/bin/unrar"
+    #   register: unrar_binary
+
+    # - name: Install unrar-free if unrar was not installed
+    #   become: true
+    #   apt:
+    #     name: unrar-free
+    #     state: present
+    #   ignore_errors: true
+    #   when: (not unrar_binary.stat.exists)
+
+    - name: Install common pip modules on the virtual environment
+      pip:
+        virtualenv: '{{ settings.venv }}'
+        state: present
+        name: "{{ item }}"
+      loop:
+        - passlib
+        - dnspython
+        - lxml
+        - jmespath
+        - netaddr
+        - ansible-toolbox
+        - yq
+        - jsons
+        - tabulate
+        - termcolor
+        # - apprise
+        # - ndg-httpsclient
+      ignore_errors: true
+
+    - name: Add aliases to bashrc
+      ansible.builtin.lineinfile:
+        path: "{{ lookup('env','HOME') }}/.bashrc"
+        line: "alias la='ls -a'"
+        state: present
+        create: true
+        owner: "{{ ansible_user | default(ansible_env.USER) }}"
+        group: "{{ ansible_user | default(ansible_env.USER) }}"
+        mode: '0644'
+      loop:
+        - "alias la='ls -a'"
+        - "alias ll='ls -l'"
+        - "alias lla='ls -la'"
+        - alias cat='bat --paging=never -pp --style='plain' --theme=TwoDark $*'
+
+    # - name: Add alias ll to bashrc
+    #   ansible.builtin.lineinfile:
+    #     path: "{{ lookup('env','HOME') }}/.bashrc"
+    #     line: "alias ll='ls -l'"
+    #     state: present
+    #     create: true
+    #     owner: "{{ ansible_user | default(ansible_env.USER) }}"
+    #     group: "{{ ansible_user | default(ansible_env.USER) }}"
+    #     mode: '0644'
+
+    # - name: Add alias lal to bashrc
+    #   ansible.builtin.lineinfile:
+    #     path: "{{ lookup('env','HOME') }}/.bashrc"
+    #     line: "alias lal='ls -al'"
+    #     state: present
+    #     create: true
+    #     owner: "{{ ansible_user | default(ansible_env.USER) }}"
+    #     group: "{{ ansible_user | default(ansible_env.USER) }}"
+    #     mode: '0644'
+
+    # - name: Add alias bat to bashrc
+    #   ansible.builtin.lineinfile:
+    #     path: "{{ lookup('env','HOME') }}/.bashrc"
+    #     line: "alias cat='bat --paging=never -pp --style='plain' --theme=TwoDark $*'"
+    #     state: present
+    #     create: true
+    #     owner: "{{ ansible_user | default(ansible_env.USER) }}"
+    #     group: "{{ ansible_user | default(ansible_env.USER) }}"
+    #     mode: '0644'
+
+    # - name: "Hetzner Tasks"
+    #   become: true
+    #   import_tasks: "subtasks/hetzner.yml"
+    #   tags: kernel-hetzner
+
+  # handlers:
+  #   # https://github.com/debops/ansible-grub
+  #   - name: Reload GRUB
+  #     become: true
+  #     command: grub-mkconfig -o /boot/grub/grub.cfg
+  #     register: grub_register_update
+  #     failed_when: ('error' in grub_register_update.stderr)

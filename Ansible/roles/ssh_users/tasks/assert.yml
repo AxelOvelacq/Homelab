@@ -1,0 +1,63 @@
+---
+- name: Check ssh_users_group
+  fail:
+    msg: "ssh_users_group is not valid."
+  when: 
+    ssh_users_group is undefined or
+    ssh_users_group is not string or
+    ssh_users_group | length < 1 or
+    not ssh_users_group is match("^[a-zA-Z0-9_]+$")
+
+- name: Check that ssh_users is defined
+  fail:
+    msg: "'ssh_users' is not valid"
+  when:
+    ssh_users is undefined or
+    ssh_users is not iterable
+
+- name: Check that sssh_authorized_keys_file is valid
+  fail:
+    msg: "'ssh_authorized_keys_file' is not valid"
+  when:
+    ssh_authorized_keys_file is undefined or
+    ssh_authorized_keys_file | dirname is not string or ssh_authorized_keys_file | dirname | length < 1 or
+    ssh_authorized_keys_file | basename | length < 1
+
+- name: Check each user
+  block:
+    - name: Check name
+      fail:
+        msg: "User name {{ item.name }} is not valid."
+      when: 
+        - item.name is undefined or item.name is not string or item.name | length < 1 or not item.name is match("^[a-zA-Z0-9_]+$")
+
+    - name: Check other parameters if name <> 'current_user'
+      block:
+        - name: Check password
+          fail:
+            msg: "Password of user {{ item.name }} is not valid."
+          when: 
+            - item.password is defined and (item.password is not string or item.password | length < 1)
+
+        - name: Check create_home
+          fail:
+            msg: "'create_home' of user {{ item.name }} is not valid."
+          when: 
+            - item.create_home is defined and item.create_home | type_debug != 'bool'
+
+        - name: Check hidden_user
+          fail:
+            msg: "'hidden_user' of user {{ item.name }} is not valid."
+          when: 
+            - item.hidden_user is defined and item.hidden_user | type_debug != 'bool'
+
+        - name: Check user's public keys
+          fail:
+            msg: "'public_keys' of user {{ item.name }} is not valid."
+          when: 
+            - item.public_keys is defined and (item.public_keys is not iterable or not all(isinstance(i, str) for i in item.public_keys))
+      
+      when: item.name != 'current_user'
+  loop: "{{ ssh_users }}"
+  loop_control:
+    loop_var: item

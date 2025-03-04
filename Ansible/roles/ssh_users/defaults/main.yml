@@ -1,0 +1,39 @@
+---
+#ssh_users_group
+# Name of the group in which all users that should have access to the machine through SSH must be included
+
+#ssh_users
+#   name: username                  - Use 'current_user' to include the current user in the ssh_users_group
+#   password : hashed_password/omit - see https://docs.ansible.com/ansible/latest/reference_appendices/faq.html#how-do-i-generate-encrypted-passwords-for-the-user-module to generate a password
+#   create_home: yes/no/omit        - If 'yes', create ah home directory for the specified user
+#   hidden_user: yes/no/omit        - If 'yes' create a hidden user
+#   public_keys: list/omit          - List of public keys allowed for SSH connection with user creds on the machine.
+#   
+#ssh_authorized_keys_file:          - File in which the SSH keys (authorized_keys file) are stored.
+#                                     It is preferable to have a path independent of the user's home folder, in the event that a user authorized to connect to SSH does not have a home folder.
+
+#   example :
+#   
+#   ssh_users:
+#     - name: current_user
+#       public_keys:
+#         - ssh-rsa AAAAB3Nz[...]
+#       authorized_keys_dir: /etc/ssh/users/
+#     - name: foo_user
+#       password: $2b$05[...]
+#       create_home: yes
+#       public_keys:
+#         - ssh-rsa AAAAB3Nza[...]
+#         - file:/home/user/public_key
+#     - name: bar_user
+#       password: $2b$05$[...]
+
+ssh_users_group: "ssh_group"
+
+ssh_users:
+  - name: current_user
+    public_keys:
+      #- ssh-rsa AAAAB3N[...]
+      #- file:/etc/ssh/users/
+
+ssh_authorized_keys_file: /etc/ssh/authorized_keys

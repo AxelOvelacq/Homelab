@@ -1,0 +1,8 @@
+---
+
+- name: Ensure zsh with dependencies are installed
+  ansible.builtin.package:
+    name: zsh
+    state: present
+    update_cache: true  # Unknown arguments will be passed to the underlying package module.
+  become: true

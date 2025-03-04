@@ -1,0 +1,6 @@
+---
+- gather_facts: no
+  become: yes
+
+  roles:
+    - ssh_users

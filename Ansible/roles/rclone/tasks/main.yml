@@ -1,0 +1,76 @@
+---
+- hosts: localhost
+  gather_facts: true
+  become: true
+  tasks:
+    - name: Check if rclone.service exists
+      stat:
+        path: "/etc/systemd/system/rclone.service"
+      register: rclone_service
+    
+    - name: Stop rclone service
+      systemd:
+        name: rclone
+        state: stopped
+      when: rclone_service.stat.exists
+
+    - name: "Create RClone mount point"
+      file:
+        path: "/mnt/{{ rclone.remote }}"
+        state: directory
+        owner: "{{ lookup('env','USER') }}"
+        group: "{{ lookup('env','MYGIDNAME') }}"
+    
+    - name: Import systemd rclone.service
+      template:
+        src: "{{ settings.roles }}/rclone/templates/rclone.service.j2"
+        dest: /etc/systemd/system/rclone.service
+        owner: "root"
+        group: "root"
+        mode: 0775
+        force: yes
+      when:  not rclone_service.stat.exists
+
+    - name: Start rclone (Please Wait)
+      systemd:
+        daemon_reload: yes
+        state: started
+        name: rclone
+        enabled: yes
+
+    - name: Check if rclone is running
+      shell: pgrep rclone
+      ignore_errors: true
+      changed_when: false
+      register: service_rclone_status
+
+    - name: Report installation status
+      block:
+      - name: Update database (fail)
+        shell:
+          cmd: |
+            sqlite3 {{ settings.db }} << EOF
+                REPLACE INTO APPLICATIONS (appname, status_id)
+                VALUES
+                ('rclone',
+                (SELECT status_id FROM APPLICATION_STATUS WHERE value='Error during installation'));
+            EOF
+      
+      - name: Report status of rclone
+        fail:
+          msg: |
+            - "rclone installation fails, please check the configuration in the rclone.conf file"
+      when: service_rclone_status.rc != 0
+
+    - name: update database
+      block:
+      - name: Update database (success)
+        shell:
+          cmd: |
+            sqlite3 {{ settings.db }} << EOF
+                REPLACE INTO APPLICATIONS (appname, status_id)
+                VALUES
+                ('rclone',
+                (SELECT status_id FROM APPLICATION_STATUS WHERE value='Configured'));
+            EOF
+      when: service_rclone_status.rc == 0

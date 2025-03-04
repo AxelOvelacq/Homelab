@@ -1,0 +1,29 @@
+---
+- hosts: all
+  vars_prompt:
+    - name: "sshd_port"
+      prompt: "On which ports ssh-server should listen"
+      private: no
+    - name: "ssh_port"
+      prompt: "On which ports ssh-client should connect"
+      private: no
+
+  tasks:
+    - name: Copy ssh config
+      ansible.builtin.copy:
+        src: "{{ settings.roles }}/hardening/ssh/defaults/main.yml"
+        dest: "{{ settings.collections }}/devsec/hardening/roles/ssh_hardening/defaults/main.yml"
+
+    - name: Launch role after copying config
+      include_role:
+        name: devsec.hardening.ssh_hardening
+
+    - name: Update database (success)
+      shell:
+        cmd: |
+          sqlite3 {{ settings.db }} << EOF
+              REPLACE INTO APPLICATIONS (appname, status_id)
+              VALUES
+              ('ssh',
+              (SELECT status_id FROM APPLICATION_STATUS WHERE value='Configured'));
+          EOF

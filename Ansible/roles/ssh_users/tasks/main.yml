@@ -1,0 +1,22 @@
+---
+- name: Assert data are present
+  ansible.builtin.include_tasks: assert.yml
+
+- name: Create ssh_group
+  ansible.builtin.group:
+    name: "{{ ssh_users_group }}"
+    state: present
+
+# - name: Create ssh key directory
+#   file:
+#     path: "{{ ssh_users_key_dir }}"
+#     state: directory
+#     owner: root
+#     group: "{{ ssh_users_group_name }}"
+#     mode: '0770'
+
+- name: Set each user
+  include_tasks: set_user.yml
+  loop: "{{ ssh_users }}"
+  loop_control:
+    loop_var: item
