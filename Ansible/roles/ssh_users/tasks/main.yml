@@ -12,3 +12,4 @@
   loop: "{{ ssh_users }}"
   loop_control:
     loop_var: item
+    label: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"

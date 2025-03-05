@@ -26,6 +26,7 @@
   loop_control:
     loop_var: pkey
   when: pkey is match('^file:')
+  no_log: true
 
 - name: Add SSH public keys from direct string
   ansible.posix.authorized_key:
@@ -37,6 +38,7 @@
   loop_control:
     loop_var: pkey
   when: pkey is not match('^file:')
+  no_log: true
 
 # - name: Show added keys from direct string
 #   debug:
@@ -45,6 +47,7 @@
 #   loop_control:
 #     loop_var: pkey
 #   when: pkey is not match('^file:')
+#   no_log: true
 
 # - name: Sohw added keys from file
 #   debug:
@@ -53,4 +56,5 @@
 #   loop_control:
 #     loop_var: pkey
 #   when: pkey is match('^file:')
+#   no_log: true
 
