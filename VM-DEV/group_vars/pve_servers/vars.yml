@@ -1,1 +1,1 @@
-os: "Proxmox"
+ssh_key_pcaxel: "{{ vault_ssh_key_pcaxel }}"
