@@ -1,0 +1,28 @@
+---
+- name: Install sudo
+  hosts: all
+  gather_facts: true
+  become: true
+  become_method: su
+  become_user: root
+
+  tasks:
+    - name: Install sudo package
+      ansible.builtin.package:
+        name: sudo
+        state: present
+
+    - name: Add current user to sudo group
+      ansible.builtin.user: 
+        name: "{{ ansible_user }}"
+        groups: sudo
+        append: true
+      changed_when: True
+      notify: Reboot system
+
+  handlers:
+    - name: Reboot system
+      ansible.builtin.reboot:
+        msg: "System will reboot in 5 seconds"
+        pre_reboot_delay: 5
+        reboot_timeout: 60

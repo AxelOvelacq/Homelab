@@ -1,7 +1,7 @@
 ---
-- name: Create user {{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}
+- name: Create user {{ (item.name == 'current_user') | ternary(ssh_users_user, item.name) }}
   ansible.builtin.user:
-    name: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
+    name: "{{ (item.name == 'current_user') | ternary(ssh_users_user, item.name) }}"
     groups: "{{ ssh_users_group }}"
     append: yes
     password: "{{ item.password | default(omit) }}"
@@ -12,49 +12,30 @@
   file:
     path: "{{ ssh_authorized_keys_file }}"
     state: touch
-    owner: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
+    owner: "{{ ssh_users_user }}"
     group: "{{ ssh_users_group }}"
     mode: '0660'
 
-- name: Add SSH public keys
-  ansible.posix.authorized_key:
-    path: "{{ ssh_authorized_keys_file }}"
-    user: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
-    key: "{{ lookup('file', pkey | replace('file:', '')) }}"
-    state: present
+- name: Run task is public_key is a direct string
+  include_tasks: set_ssh_key_string.yml
   loop: "{{ item.public_keys }}"
   loop_control:
     loop_var: pkey
-  when: pkey is match('^file:')
-  no_log: true
+    label: ""
+  when: pkey is match('^ssh')
 
-- name: Add SSH public keys from direct string
-  ansible.posix.authorized_key:
-    path: "{{ ssh_authorized_keys_file }}"
-    user: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
-    key: "{{ pkey }}"
-    state: present
+- name: Run task is public_key is a local file
+  include_tasks: set_ssh_key_local.yml
   loop: "{{ item.public_keys }}"
   loop_control:
     loop_var: pkey
-  when: pkey is not match('^file:')
-  no_log: true
+    label: ""
+  when: pkey is match('^local:')
 
-# - name: Show added keys from direct string
-#   debug:
-#     msg: "{{ pkey }}"
-#   loop: "{{ item.public_keys }}"
-#   loop_control:
-#     loop_var: pkey
-#   when: pkey is not match('^file:')
-#   no_log: true
-
-# - name: Sohw added keys from file
-#   debug:
-#     msg: "{{ lookup('file', pkey | replace('file:', '')) }}"
-#   loop: "{{ item.public_keys }}"
-#   loop_control:
-#     loop_var: pkey
-#   when: pkey is match('^file:')
-#   no_log: true
-
+- name: Run task is public_key is a remote file
+  include_tasks: set_ssh_key_remote.yml
+  loop: "{{ item.public_keys }}"
+  loop_control:
+    loop_var: pkey
+    label: ""
+  when: pkey is match('^remote')

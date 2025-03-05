@@ -1,4 +1,8 @@
 ---
+- name: Set user
+  set_fact:
+    ssh_users_user: "{{ (ansible_connection == 'local') | ternary(lookup('env','USER'), ansible_user) }}"
+
 - name: Assert data are present
   ansible.builtin.include_tasks: assert.yml
 
@@ -12,4 +16,4 @@
   loop: "{{ ssh_users }}"
   loop_control:
     loop_var: item
-    label: "{{ (item.name == 'current_user') | ternary(lookup('env', 'USER'), item.name) }}"
+    label: "{{ ssh_users_user }}"

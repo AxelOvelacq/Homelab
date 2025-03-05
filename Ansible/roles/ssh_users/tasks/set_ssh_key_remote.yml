@@ -1,0 +1,19 @@
+---
+- name: Get remote file content
+  ansible.builtin.slurp:
+    src: "{{ pkey | replace('remote:', '') }}"
+  register: remote_content
+
+- name: Add file content
+  ansible.posix.authorized_key:
+    path: "{{ ssh_authorized_keys_file }}"
+    user: "{{ ssh_users_user }}"
+    key: "{{ remote_content['content'] | b64decode }}"
+    state: present
+  no_log: true
+  
+# - name: Show added keys from file
+#   debug:
+#     msg: "{{ lookup('file', pkey | replace('file:', '')) }}"
+#   no_log: true
+

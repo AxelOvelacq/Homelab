@@ -1,0 +1,14 @@
+---
+- name: Add SSH public keys from local file
+  ansible.posix.authorized_key:
+    path: "{{ ssh_authorized_keys_file }}"
+    user: "{{ ssh_users_user }}"
+    key: "{{ lookup('file', pkey | replace('local:', '')) }}"
+    state: present
+  no_log: true
+
+# - name: Show added keys from file
+#   debug:
+#     msg: "{{ lookup('file', pkey | replace('file:', '')) }}"
+#   no_log: true
+

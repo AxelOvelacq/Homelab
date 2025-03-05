@@ -1,0 +1,13 @@
+---
+- name: Add SSH public keys from direct string
+  ansible.posix.authorized_key:
+    path: "{{ ssh_authorized_keys_file }}"
+    user: "{{ ssh_users_user }}"
+    key: "{{ pkey }}"
+    state: present
+  no_log: true
+
+# - name: Show added keys from direct string
+#   debug:
+#     msg: "{{ pkey }}"
+#   no_log: true
