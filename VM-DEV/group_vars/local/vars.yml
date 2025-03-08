@@ -1,7 +1,0 @@
----
-ssh_users_group: "ssh_group"
-ssh_users:
-  - name: current_user
-    public_keys:
-      - "{{ vault_ssh_key_pcaxel }}"
-ssh_authorized_keys_file: /etc/ssh/authorized_keys

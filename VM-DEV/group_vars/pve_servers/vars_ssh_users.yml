@@ -1,0 +1,9 @@
+---
+ssh_users_group: "{{ vault_ssh_hardening_ssh_allow_groups }}"
+ssh_users:
+  - name: current_user
+    public_keys:
+      - "remote:/home/{{ ansible_user }}/.ssh/authorized_keys"
+      - "{{ vault_ssh_key_pcaxel }}"
+      - "remote:/home/axel/.ssh/PVE1.pub"
+ssh_authorized_keys_file: "{{ vault_ssh_hardening_ssh_authorized_keys_file }}"

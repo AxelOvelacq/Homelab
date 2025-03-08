@@ -1,0 +1,8 @@
+---
+ssh_users_group: "{{ vault_ssh_hardening_ssh_allow_groups }}"
+ssh_users:
+  - name: current_user
+    public_keys:
+      - "{{ vault_ssh_key_pcaxel }}"
+      - "local:/home/axel/.ssh/VM-DEV.pub"
+ssh_authorized_keys_file: "{{ vault_ssh_hardening_ssh_authorized_keys_file }}"

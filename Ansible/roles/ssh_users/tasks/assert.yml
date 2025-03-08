@@ -15,9 +15,9 @@
     ssh_users is undefined or
     ssh_users is not iterable
 
-- name: Check that sssh_authorized_keys_file is valid
+- name: Check that ssh_authorized_keys_file is valid
   fail:
-    msg: "'ssh_authorized_keys_file' is not valid"
+    msg: "'ssh_authorized_keys_file' {{ ssh_authorized_keys_file }} is not valid"
   when:
     ssh_authorized_keys_file is undefined or
     ssh_authorized_keys_file | dirname is not string or ssh_authorized_keys_file | dirname | length < 1 or

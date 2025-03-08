@@ -1,0 +1,18 @@
+---
+- name: SSH hardening
+  hosts: all
+  gather_facts: true
+  # vars_files:
+  #   - group_vars/local/vault_ssh_hardening.yml
+  #   - group_vars/local/vault_ssh_users.yml
+  #   - group_vars/local/vars_ssh_hardening.yml
+  #   - group_vars/local/vars_ssh_users.yml
+    
+  roles:
+    - role: ../../Ansible/roles/ssh_users
+      vars:
+        user: "{{ (ansible_connection == 'local') | ternary(lookup('env','USER'), ansible_user) }}"
+      become: true
+
+    - role: devsec.hardening.ssh_hardening
+      become: true
