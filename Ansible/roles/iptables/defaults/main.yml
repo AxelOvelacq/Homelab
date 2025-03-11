@@ -1,0 +1,757 @@
+---
+iptables_ssh_server_port: 3022
+iptables_ssh_client_ports:
+  - "22"
+  - "3022"
+
+iptables_flush_all: true
+
+iptables_default_policies:
+  - table: filter
+    default_chains:
+      - name : INPUT
+        default_policy: ACCEPT
+      - name : OUTPUT
+        default_policy: ACCEPT
+      - name : FORWARD
+        default_policy: ACCEPT
+  - table: nat
+    default_chains:
+      - name : OUTPUT
+        default_policy: ACCEPT
+      - name : PREROUTING
+        default_policy: ACCEPT
+      - name : POSTROUTING
+        default_policy: ACCEPT
+  - table: mangle
+    default_chains:
+      - name : INPUT
+        default_policy: ACCEPT
+      - name : OUTPUT
+        default_policy: ACCEPT
+      - name : FORWARD
+        default_policy: ACCEPT
+      - name : PREROUTING
+        default_policy: ACCEPT
+      - name : POSTROUTING
+        default_policy: ACCEPT
+  - table: raw
+    default_chains:
+      - name : PREROUTING
+        default_policy: ACCEPT
+      - name : OUTPUT
+        default_policy: ACCEPT
+
+iptables_input_rules:
+  - iptables_before_logging_input:
+      chains: []
+      rules: 
+
+        ##### INVALID PACKETS : Global #####
+
+        - comment: DROP invalid packets - Global
+          table: filter
+          chain: before_logging_input
+          ctstate: INVALID
+          jump: DROP_NO_LOG
+
+        ##### INVALID PACKETS : NEW without SYN flag #####
+
+        - comment: DROP invalid packets - NEW whithout SYN
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - SYN
+            flags_set: []
+          ctstate: NEW
+          jump: DROP_NO_LOG
+
+        ##### INVALID PACKETS : XMAS PACKETS #####
+
+        - comment: DROP invalid packets - XMAS FIN SYN
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - FIN
+              - SYN
+            flags_set:
+              - FIN
+              - SYN
+          jump: DROP_NO_LOG
+
+        - comment: DROP invalid packets - XMAS SYN RST
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - SYN
+              - RST
+            flags_set:
+              - SYN
+              - RST
+          jump: DROP_NO_LOG
+
+        - comment: DROP invalid packets - XMAS FIN RST
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - FIN
+              - RST
+            flags_set:
+              - FIN
+              - RST
+          jump: DROP_NO_LOG
+
+        - comment: DROP invalid packets - XMAS FIN ACK
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - FIN
+              - ACK
+            flags_set:
+              - FIN
+          jump: DROP_NO_LOG
+
+        - comment: DROP invalid packets - XMAS ACK URG
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - ACK
+              - URG
+            flags_set:
+              - URG
+          jump: DROP_NO_LOG
+
+        - comment: DROP invalid packets - XMAS ACK PSH
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - ACK
+              - PSH
+            flags_set: 
+              - PSH
+          jump: DROP_NO_LOG
+
+        - comment: DROP invalid packets - XMAS ALL NONE
+          table: filter
+          chain: before_logging_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - ALL
+            flags_set:
+              - NONE
+          jump: DROP_NO_LOG
+
+        ##### WRONG SOURCE ADDRESS - ANTI-SPOOFING #####
+
+        - comment: DROP packets from loopback network but not from the loopback interface
+          table: filter
+          chain: before_logging_input
+          source: 127.0.0.0/8
+          in_interface: "!lo"
+          jump: DROP_LOG
+
+  - iptables_before_input:
+      chains:
+        - before_input-loopback
+        - before_input-ICMP
+        - before_input-syn_flood
+        - before_input-rst_flood
+        - before_input-limit_tcp
+      rules:
+        
+        ##### SYN-FLOOD ATTACKS  #####
+
+        - comment: Check SYN-flood attack
+          table: filter
+          chain: before_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - SYN
+            flags_set:
+              - SYN
+          jump: before_input-syn_flood
+
+        - comment: RETURN new connections with rate limiting
+          table: filter
+          chain: before_input-syn_flood
+          limit: 2/s
+          limit_burst: 3
+          jump: RETURN
+
+        - comment: DROP new connections over the limit
+          table: filter
+          chain: before_input-syn_flood
+          jump: DROP_LOG
+        
+        ##### RST-FLOOD ATTACKS  #####
+
+        - comment: Check RST-flood attack
+          table: filter
+          chain: before_input
+          protocol: tcp
+          tcp_flags:
+            flags:
+              - RST
+            flags_set:
+              - RST
+          jump: before_input-rst_flood
+
+        - comment: RETURN new connections with rate limiting
+          table: filter
+          chain: before_input-rst_flood
+          limit: 2/s
+          limit_burst: 3
+          jump: RETURN
+
+        - comment: DROP new connections over the limit
+          table: filter
+          chain: before_input-rst_flood
+          jump: DROP_LOG
+        
+        ##### LIMIT TCP CONNECTIONS  #####
+
+        - comment: Check NEW TCP connections
+          table: filter
+          chain: before_input
+          protocol: tcp
+          ctstate: NEW
+          jump: before_input-limit_tcp
+
+        - comment: RETURN new connections with rate limiting
+          table: filter
+          chain: before_input-limit_tcp
+          limit: 5/s
+          limit_burst: 10
+          jump: RETURN
+
+        - comment: DROP new connections over the limit
+          table: filter
+          chain: before_input-limit_tcp
+          jump: DROP_LOG
+        
+        ##### LOOPBACK INTERFACE #####
+
+        - comment: Manage packets recieved on loopback interface
+          table: filter
+          chain: before_input
+          in_interface: lo
+          jump: before_input-loopback
+
+        - comment: ACCEPT packets from related and established connection
+          table: filter
+          chain: before_input-loopback
+          ctstate: ESTABLISHED,RELATED
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT packets to SSH port
+          table: filter
+          chain: before_input-loopback
+          protocol: tcp
+          ctstate: NEW,ESTABLISHED
+          destination_port: "{{ iptables_ssh_server_port }}"
+          jump: ACCEPT_NO_LOG
+
+        - comment: Manage ICMP packets recieved on loopback interface
+          table: filter
+          chain: before_input-loopback
+          protocol: icmp
+          jump: before_input-ICMP
+
+        - comment: DROP all other packets recieved on loopback interface
+          table: filter
+          chain: before_input-loopback
+          jump: DROP_LOG
+
+        ##### ICMP PROTOCOL #####
+
+        - comment: Manage ICMP packets recieved
+          table: filter
+          chain: before_input
+          protocol: icmp
+          jump: before_input-ICMP
+
+        - comment: ACCEPT answers to ICMP echo request (0 - echo-reply)
+          table: filter
+          chain: before_input-ICMP
+          protocol: icmp
+          icmp_type: echo-reply
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT answers to ICMP echo request (3 - destination unreachable)
+          table: filter
+          chain: before_input-ICMP
+          protocol: icmp
+          icmp_type: destination-unreachable
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT answers to ICMP echo request (11 - time-exceeded)
+          table: filter
+          chain: before_input-ICMP
+          protocol: icmp
+          icmp_type: time-exceeded
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT answers to ICMP echo request (12 - parameter-problem)
+          table: filter
+          chain: before_input-ICMP
+          protocol: icmp
+          icmp_type: parameter-problem
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT ICMP echo request (8 - echo-request)
+          table: filter
+          chain: before_input-ICMP
+          protocol: icmp
+          icmp_type: echo-request
+          limit: 1/s
+          limit_burst: 5
+          jump: ACCEPT_LOG
+
+        - comment: DROP all other ICMP types
+          table: filter
+          chain: before_input-ICMP
+          protocol: icmp
+          jump: DROP_LOG
+
+  - iptables_after_input:
+      chains:
+        - after_input-web-outgoing
+        - after_input-dns
+        - after-input-dhcp
+      rules:
+
+        ##### WEB #####
+
+        - comment: Accept incoming traffic from port 80
+          table: filter
+          chain: after_input
+          protocol: tcp
+          ctstate: ESTABLISHED
+          source_port: 80
+          jump: ACCEPT_NO_LOG
+
+        - comment: Accept incoming traffic from port 443
+          table: filter
+          chain: after_input
+          protocol: tcp
+          ctstate: ESTABLISHED
+          source_port: 443
+          jump: ACCEPT_NO_LOG
+
+        ##### DHCP #####
+
+        - comment: Accept incoming DHCP answers
+          table: filter
+          chain: after_input
+          protocol: udp
+          source_port: 67
+          destination_port: 68
+          jump: ACCEPT_LOG
+
+        - comment: Accept incoming DHCP relays answers
+          table: filter
+          chain: after_input
+          protocol: udp
+          source_port: 67
+          destination_port: 67
+          jump: ACCEPT_LOG
+
+        ##### DNS #####
+
+        - comment: Accept incoming DNS answers
+          table: filter
+          chain: after_input
+          protocol: udp
+          source_port: 53
+          jump: ACCEPT_NO_LOG
+
+        ##### SSH #####
+
+        - comment: Accept incoming SSH connections
+          table: filter
+          chain: after_input
+          protocol: tcp
+          destination_port: "{{ iptables_ssh_server_port }}"
+          jump: ACCEPT_LOG
+
+        - comment: Accept outgoing SSH connections
+          table: filter
+          chain: after_input
+          protocol: tcp
+          source_port: "{{ iptables_ssh_server_port }}"
+          jump: ACCEPT_LOG
+
+        ##### mDNS (Bonjour) #####
+
+        - comment: DROP mDNS requests
+          table: filter
+          chain: after_input
+          protocol: udp
+          destination: 224.0.0.251
+          destination_port: 5353
+          jump: DROP_NO_LOG
+
+        ##### SSPD (UPnP) #####
+
+        - comment: DROP SSPD requests
+          table: filter
+          chain: after_input
+          protocol: udp
+          destination: 239.255.255.250
+          destination_port: 1900
+          jump: DROP_LOG
+
+        ##### NetBIOS / LLMNR #####
+
+        - comment: DROP NetBIOS requests UDP
+          table: filter
+          chain: after_input
+          protocol: udp
+          destination_ports:
+            - 137
+            - 138
+          jump: DROP_LOG
+
+        - comment: DROP NetBIOS requests TCP
+          table: filter
+          chain: after_input
+          protocol: tcp
+          destination_ports:
+            - 137
+            - 138
+            - 139
+          jump: DROP_LOG
+
+        - comment: DROP LLMNR requests UDP
+          table: filter
+          chain: after_input
+          protocol: udp
+          destination_port: 5355
+          jump: DROP_LOG
+
+        ##### SMB #####
+
+        - comment: DROP SMB requests
+          table: filter
+          chain: after_input
+          protocol: tcp
+          destination_port: 445
+          jump: DROP_LOG
+
+        ##### Discovery #####
+
+        - comment: DROP Discovery requests (Tuya)
+          table: filter
+          chain: after_input
+          protocol: udp
+          destination: 255.255.255.255
+          destination_port: 6667
+          jump: DROP_NO_LOG
+
+        - comment: DROP Discovery requests (Spotify)
+          table: filter
+          chain: after_input
+          protocol: udp
+          source_port: 57621
+          destination_port: 57621
+          jump: DROP_NO_LOG
+
+  - iptables_after_logging_input:
+      chains: []
+      rules: []
+
+  - iptables_default_policy_input:
+      chains: []
+      rules:
+        - comment: Default INPUT policy
+          table: filter
+          chain: default_policy_input
+          jump: DROP_LOG
+
+iptables_output_rules:
+  - iptables_before_logging_output:
+      chains: []
+      rules:
+
+        ##### INVALID PACKETS #####
+
+        - comment: DROP invalid packets
+          table: filter
+          chain: before_logging_output
+          ctstate: INVALID
+          jump: DROP_NO_LOG
+
+  - iptables_before_output:
+      chains:
+        - before_output-loopback
+        - before_output-ICMP
+      rules:
+      
+        ##### LOOPBACK INTERFACE #####
+
+        - comment: Manage packets sent from loopback interface
+          table: filter
+          chain: before_output
+          out_interface: lo
+          jump: before_output-loopback
+
+        - comment: ACCEPT packets from related and established connection
+          table: filter
+          chain: before_output-loopback
+          ctstate: ESTABLISHED,RELATED
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT packets to SSH port
+          table: filter
+          chain: before_output-loopback
+          protocol: tcp
+          ctstate: NEW,ESTABLISHED
+          destination_port: "{{ iptables_ssh_server_port }}"
+          jump: ACCEPT_NO_LOG
+
+        - comment: Manage ICMP packets sent from loopback interface
+          table: filter
+          chain: before_output-loopback
+          protocol: icmp
+          jump: before_output-ICMP
+
+        - comment: DROP all other packets sent from loopback interface
+          table: filter
+          chain: before_output-loopback
+          jump: DROP_LOG
+
+        ##### ICMP PROTOCOL #####
+
+        - comment: Manage ICMP packets sent
+          table: filter
+          chain: before_output
+          protocol: icmp
+          jump: before_output-ICMP
+
+        - comment: ACCEPT answers to ICMP echo request (0 - echo-reply)
+          table: filter
+          chain: before_output-ICMP
+          protocol: icmp
+          icmp_type: echo-reply
+          limit: 1/s
+          limit_burst: 3
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT answers to ICMP echo request (12 - parameter-problem)
+          table: filter
+          chain: before_output-ICMP
+          protocol: icmp
+          icmp_type: parameter-problem
+          limit: 1/s
+          limit_burst: 3
+          jump: ACCEPT_NO_LOG
+
+        - comment: ACCEPT ICMP echo request (8 - echo-request)
+          table: filter
+          chain: before_output-ICMP
+          protocol: icmp
+          icmp_type: echo-request
+          limit: 3/s
+          limit_burst: 10
+          jump: ACCEPT_NO_LOG
+
+        - comment: DROP all other ICMP types
+          table: filter
+          chain: before_output-ICMP
+          protocol: icmp
+          jump: DROP_LOG
+
+  - iptables_after_output:
+      chains:
+        - after_output-web-outgoing
+        - after_output-dns
+        - after-output-dhcp
+      rules:
+
+        ##### WEB #####
+
+        - comment: Accept outgoing traffic to port 80
+          table: filter
+          chain: after_output
+          protocol: tcp
+          ctstate: NEW,ESTABLISHED
+          destination_port: 80
+          jump: ACCEPT_NO_LOG
+
+        - comment: Accept outgoing traffic to port 443
+          table: filter
+          chain: after_output
+          protocol: tcp
+          ctstate: NEW,ESTABLISHED
+          destination_port: 443
+          jump: ACCEPT_NO_LOG
+
+        ##### DHCP #####
+
+        - comment: Accept outgoing DHCP requests
+          table: filter
+          chain: after_output
+          protocol: udp
+          source_port: 68
+          destination_port: 67
+          jump: ACCEPT_LOG
+
+        ##### DNS #####
+
+        - comment: Accept outgoing DNS requests
+          table: filter
+          chain: after_output
+          protocol: udp
+          destination_port: 53
+          jump: ACCEPT_NO_LOG
+
+        ##### SSH #####
+
+        - comment: Accept incomming SSH connections
+          table: filter
+          chain: after_output
+          protocol: tcp
+          source_port: "{{ iptables_ssh_server_port }}"
+          jump: ACCEPT_LOG
+
+        - comment: Accept outgoing SSH connections with server port
+          table: filter
+          chain: after_output
+          protocol: tcp
+          destination_port: "{{ iptables_ssh_server_port }}"
+          jump: ACCEPT_LOG
+
+
+        - comment: Accept outgoing SSH connections with client ports
+          table: filter
+          chain: after_output
+          protocol: tcp
+          destination_ports: "{{ iptables_ssh_client_ports }}"
+          jump: ACCEPT_LOG
+
+        ##### NetBIOS / LLMNR #####
+
+        - comment: DROP NetBIOS requests UDP
+          table: filter
+          chain: after_output
+          protocol: udp
+          destination_ports:
+            - 137
+            - 138
+          jump: DROP_LOG
+
+        - comment: DROP NetBIOS requests TCP
+          table: filter
+          chain: after_output
+          protocol: tcp
+          destination_ports:
+            - 137
+            - 138
+            - 139
+          jump: DROP_LOG
+
+        - comment: DROP LLMNR requests UDP
+          table: filter
+          chain: after_output
+          protocol: udp
+          destination_port: 5355
+          jump: DROP_LOG
+
+        ##### SMB #####
+
+        - comment: DROP SMB requests
+          table: filter
+          chain: after_output
+          protocol: tcp
+          destination_port: 445
+          jump: DROP_LOG
+
+  - iptables_after_logging_output:
+      chains: []
+      rules: []
+
+  - iptables_default_policy_output:
+      chains: []
+      rules:
+        - comment: Default OUTPUT policy
+          table: filter
+          chain: default_policy_output
+          jump: DROP_LOG
+
+iptables_forward_rules:
+  - iptables_before_logging_forward:
+      chains: []
+      rules: []
+      
+  - iptables_before_forward:
+      chains: []
+      rules: []
+
+  - iptables_after_forward:
+      chains: []
+      rules: []
+
+  - iptables_after_logging_forward:
+      chains: []
+      rules: []
+
+  - iptables_default_policy_forward:
+      chains: []
+      rules:
+          - comment: Default FORWARD policy
+            table: filter
+            chain: default_policy_forward
+            jump: DROP_LOG
+
+iptables_setup_custom_chains: true
+iptables_custom_chains:
+  - name: loopback_INPUT
+    table: filter
+    present: true
+  - name: loopback_OUTPUT
+    table: filter
+    present: true
+
+iptables_setup_custom_rules: true
+iptables_custom_rules: []
+
+  # - comment: Jump to loopback interface INPUT rules
+  #   table: filter
+  #   chain: INPUT
+  #   jump: loopback_INPUT
+  #   in_interface: lo
+  # - comment: Jump to loopback interface OUTPUT rules
+  #   table: filter
+  #   chain: OUTPUT
+  #   jump: loopback_OUTPUT
+  #   out_interface: lo
+
+test:
+  - val1:
+      elt1:
+        - titi
+        - toto
+      elt2:
+        - tata
+        - tutu
+  - val2:
+      elt1:
+        - tete
+      elt2:
+        - tyty

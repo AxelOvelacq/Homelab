@@ -1,0 +1,113 @@
+---
+- name: Flush all chains
+  when: iptables_flush_all | bool
+  block:
+    - name: Flush integrated chains
+      ansible.builtin.iptables:
+        flush: true
+        chain: "{{ item }}"
+      loop:
+        - INPUT
+        - OUTPUT
+        - FORWARD
+
+    - name: Get all custom chains
+      command: iptables -L -n -v
+      register: iptables_output
+
+    - name: Flush custom chains
+      ansible.builtin.iptables:
+        flush: true
+        chain: "{{ item }}"
+      loop: "{{ iptables_output.stdout_lines | select('match', '^Chain ') | map('regex_replace', '^Chain ([^ ]+) .*$', '\\1') | difference(['INPUT', 'OUTPUT', 'FORWARD']) }}"
+
+    - name: Remove custom chains
+      ansible.builtin.iptables:
+        chain: "{{ item }}"
+        chain_management: true
+        state: absent
+      loop: "{{ iptables_output.stdout_lines | select('match', '^Chain ') | map('regex_replace', '^Chain ([^ ]+) .*$', '\\1') | difference(['INPUT', 'OUTPUT', 'FORWARD']) }}"
+
+- name: Setup default policies for built-in chains
+  ansible.builtin.iptables:
+    table: "{{ item.0.table }}"
+    chain: "{{ item.1.name }}"
+    policy: "{{ item.1.default_policy }}"
+  with_subelements:
+    - "{{ iptables_default_policies }}"
+    - default_chains
+
+- name: Create main chains
+  ansible.builtin.iptables:
+    chain_management: true
+    chain: "{{ chain.name }}"
+    state: present
+    table: "{{ chain.table | default('filter') }}"
+  loop: "{{ iptables_main_chains }}"
+  loop_control:
+    loop_var: chain
+    
+- name: Create main rules routing
+  ansible.builtin.iptables: "{{ rule }}"
+  loop: "{{ iptables_main_rules }}"
+  loop_control:
+    loop_var: rule
+
+# - name: test
+#   ansible.builtin.include_tasks: prompt.yml
+#   loop: "{{ test }}"
+#   loop_control:
+#     loop_var: set
+
+- name: Setup INPUT chains and rules
+  ansible.builtin.include_tasks: set_chains_rules.yml
+  loop: "{{ iptables_input_rules }}"
+  loop_control:
+    loop_var: item
+  # no_log: true
+
+- name: Setup OUTPUT chains and rules
+  ansible.builtin.include_tasks: set_chains_rules.yml
+  loop: "{{ iptables_output_rules }}"
+  loop_control:
+    loop_var: item
+  # no_log: true
+
+- name: Setup FORWARD chains and rules
+  ansible.builtin.include_tasks: set_chains_rules.yml
+  loop: "{{ iptables_forward_rules }}"
+  loop_control:
+    loop_var: item
+  # no_log: true
+
+
+
+
+# - name: Create/Remove custom chains
+#   when:
+#     - iptables_setup_custom_chains | bool
+#     - iptables_custom_chains is iterable
+#   ansible.builtin.iptables:
+#     chain_management: true
+#     chain: "{{ chain.name }}"
+#     state: "{{ (chain.present | default(true)) | bool | ternary('present', 'absent') }}"
+#     table: "{{ chain.table | default('filter') }}"
+#   loop: "{{ iptables_custom_chains }}"
+#   loop_control:
+#     loop_var: chain
+    
+# - name: Create/Remove custom rules
+#   when:
+#     - iptables_setup_custom_rules | bool
+#     - iptables_custom_rules is iterable
+#   ansible.builtin.iptables: "{{ rule }}"
+#   loop: "{{ iptables_custom_rules }}"
+#   loop_control:
+#     loop_var: rule
+
+
+
+# - name: Debug
+#   debug:
+#     msg:
+#       - "{{ iptables_default_tables | selectattr('name', 'equalto', 'nat') | map(attribute='default_chains') | first }}"

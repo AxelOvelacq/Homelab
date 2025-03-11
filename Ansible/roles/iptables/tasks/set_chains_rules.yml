@@ -1,0 +1,16 @@
+---
+- name: Setup chains
+  ansible.builtin.iptables:
+    chain_management: true
+    chain: "{{ chain }}"
+    state: "{{ (chain.present | default(true)) | bool | ternary('present', 'absent') }}"
+    table: "{{ chain.table | default('filter') }}"
+  loop: "{{ item[item.keys() | list | first].chains }}"
+  loop_control:
+    loop_var: chain
+
+- name: Setup rules
+  ansible.builtin.iptables: "{{ rule }}"
+  loop: "{{ item[item.keys() | list | first].rules }}"
+  loop_control:
+    loop_var: rule

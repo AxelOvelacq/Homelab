@@ -1,0 +1,203 @@
+---
+iptables_packages:
+  - name: iptables
+    present: true
+  - name: iptables-persistent
+    present: true
+
+iptables_ip_versions:
+  - ipv4
+  - ipv6
+
+iptables_default_tables:
+  - name: filter
+    default_chains:
+      - INPUT
+      - OUTPUT
+      - FORWARD
+  - name: nat
+    default_chains:
+      - OUTPUT
+      - PREROUTING
+      - POSTROUTING
+  - name: mangle
+    default_chains:
+      - INPUT
+      - OUTPUT
+      - FORWARD
+      - PREROUTING
+      - POSTROUTING
+  - name: raw
+    default_chains:
+      - PREROUTING
+      - OUTPUT
+
+in_out_chains:
+  - INPUT
+  - OUTPUT
+
+iptables_main_chains:
+  - name: before_logging_input
+  - name: before_input
+  - name: user_input
+  - name: after_input
+  - name: after_logging_input
+  - name: default_policy_input
+
+  - name: before_logging_output
+  - name: before_output
+  - name: user_output
+  - name: after_output
+  - name: after_logging_output
+  - name: default_policy_output
+
+  - name: before_logging_forward
+  - name: before_forward
+  - name: user_forward
+  - name: after_forward
+  - name: after_logging_forward
+  - name: default_policy_forward
+
+  - name: DROP_NO_LOG
+  - name: DROP_LOG
+  - name: ACCEPT_NO_LOG
+  - name: ACCEPT_LOG
+  - name: REJECT_NO_LOG
+  - name: REJECT_LOG
+
+
+iptables_main_rules:
+  - comment: Priority filter rules executed before logging. Should not contain logs
+    table: filter
+    chain: INPUT
+    jump: before_logging_input
+  - comment: Essential basic rules
+    table: filter
+    chain: INPUT
+    jump: before_input
+  - comment: User_defined rules
+    table: filter
+    chain: INPUT
+    jump: user_input
+  - comment: Default rules not handled by user
+    table: filter
+    chain: INPUT
+    jump: after_input
+  - comment: Final processed rules. Should not contain logs
+    table: filter
+    chain: INPUT
+    jump: after_logging_input
+  - comment: Default policy
+    table: filter
+    chain: INPUT
+    jump: default_policy_input
+
+  - comment: Priority filter rules executed before logging. Should not contain logs
+    table: filter
+    chain: OUTPUT
+    jump: before_logging_output
+  - comment: Essential basic rules
+    table: filter
+    chain: OUTPUT
+    jump: before_output
+  - comment: User_defined rules
+    table: filter
+    chain: OUTPUT
+    jump: user_output
+  - comment: Default rules not handled by user
+    table: filter
+    chain: OUTPUT
+    jump: after_output
+  - comment: Final processed rules. Should not contain logs
+    table: filter
+    chain: OUTPUT
+    jump: after_logging_output
+  - comment: Default policy
+    table: filter
+    chain: OUTPUT
+    jump: default_policy_input
+
+  - comment: Priority filter rules executed before logging. Should not contain logs
+    table: filter
+    chain: FORWARD
+    jump: before_logging_forward
+  - comment: Essential basic rules
+    table: filter
+    chain: FORWARD
+    jump: before_forward
+  - comment: User_defined rules
+    table: filter
+    chain: FORWARD
+    jump: user_forward
+  - comment: Default rules not handled by user
+    table: filter
+    chain: FORWARD
+    jump: after_forward
+  - comment: Final processed rules. Should not contain logs
+    table: filter
+    chain: FORWARD
+    jump: after_logging_forward
+  - comment: Default policy
+    table: filter
+    chain: FORWARD
+    jump: default_policy_forward
+
+  ##### DROP_LOG #####
+  - comment: LOG
+    table: filter
+    chain: DROP_LOG
+    jump: LOG
+    limit: 2/second
+    limit_burst: 20
+    log_prefix: "IPTABLES:BLOCK: "
+    log_level: warning
+  - comment: DROP
+    table: filter
+    chain: DROP_LOG
+    jump: DROP
+
+  ##### DROP_NO_LOG #####
+  - comment: DROP
+    table: filter
+    chain: DROP_NO_LOG
+    jump: DROP
+
+  ##### ACCEPT_LOG #####
+  - comment: LOG
+    table: filter
+    chain: ACCEPT_LOG
+    jump: LOG
+    limit: 2/second
+    limit_burst: 20
+    log_prefix: "IPTABLES:ACCEPT: "
+    log_level: info
+  - comment: ACCEPT
+    table: filter
+    chain: ACCEPT_LOG
+    jump: ACCEPT
+
+  ##### ACCEPT_NO_LOG #####
+  - comment: ACCEPT
+    table: filter
+    chain: ACCEPT_NO_LOG
+    jump: ACCEPT
+
+  ##### REJECT_LOG #####
+  - comment: LOG
+    table: filter
+    chain: REJECT_LOG
+    jump: LOG
+    limit: 2/second
+    limit_burst: 20
+    log_prefix: "IPTABLES:REJECT: "
+    log_level: warning
+  - comment: REJECT
+    table: filter
+    chain: REJECT_LOG
+    jump: REJECT
+
+  ##### REJECT_NO_LOG #####
+  - comment: REJECT
+    table: filter
+    chain: REJECT_NO_LOG
+    jump: REJECT

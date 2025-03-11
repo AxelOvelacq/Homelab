@@ -1,0 +1,10 @@
+---
+- name: Install/Remove required packages
+  ansible.builtin.apt:
+    name: "{{ item.name }}"
+    state: "{{ (item.present | bool) | ternary('present', 'absent') }}"
+    # update_cache: "{{ (item.present | bool) | ternary(true, omit) }}"
+    install_recommends: "{{ (item.present | bool) | ternary(false, omit) }}"
+  loop: "{{ iptables_packages }}"
+  loop_control:
+    loop_var: item

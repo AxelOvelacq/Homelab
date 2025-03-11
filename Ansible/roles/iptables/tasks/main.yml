@@ -1,0 +1,6 @@
+---
+- name: Include install/remove tasks
+  ansible.builtin.include_tasks: iptables.yml
+  args:
+    apply:
+      become: true
