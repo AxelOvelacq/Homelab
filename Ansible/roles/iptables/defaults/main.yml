@@ -472,6 +472,17 @@ iptables_input_rules:
           destination_port: 57621
           jump: DROP_NO_LOG
 
+        ##### Github #####
+
+        - comment: ACCEPT Github data
+          table: filter
+          chain: after_input
+          protocol: tcp
+          source_port: 22
+          ctstate: ESTABLISHED,RELATED
+          source: 140.82.112.0/20
+          jump: ACCEPT_NO_LOG
+
   - iptables_after_logging_input:
       chains: []
       rules: []
